@@ -1,21 +1,51 @@
 @import "tailwindcss";
 
 :root {
-  --background: #020617;
-  /* slate-950 */
-  --foreground: #f1f5f9;
-  /* slate-100 */
+  --background: 140 20% 4%;
+  --foreground: 140 10% 90%;
+  --card: 140 20% 6%;
+  --primary: 142 71% 45%;
+  --destructive: 0 84% 60%;
+  --secondary: 140 20% 10%;
+  --border: 140 30% 12%;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+@theme {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-primary: hsl(var(--primary));
+  --color-destructive: hsl(var(--destructive));
+  --color-secondary: hsl(var(--secondary));
+  --color-border: hsl(var(--border));
+
+  --font-sans: var(--font-sora);
+  --font-mono: var(--font-jetbrains-mono);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--color-background);
+  color: var(--color-foreground);
   min-height: 100vh;
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+
+/* Custom scrollbar for terminals */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: #000000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #262626;
+  border-radius: 0px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #404040;
 }

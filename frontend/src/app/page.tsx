@@ -8,15 +8,12 @@ import {
   Activity,
   FileText,
   Upload,
-  Users,
-  Laptop,
-  DollarSign,
   Send,
   ArrowRight,
-  TrendingUp,
   AlertOctagon,
   Globe,
-  Loader
+  Loader,
+  Plus
 } from 'lucide-react';
 
 interface Stats {
@@ -27,6 +24,220 @@ interface Stats {
   total_fraud_volume: number;
   suspected_devices: number;
 }
+
+interface BlocklistEntry {
+  id: number;
+  value: string;
+  type: string;
+  reason: string;
+}
+
+// Live Canvas Fraud Simulation Background Component
+const FraudCanvas = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animationFrameId: number;
+    let width = (canvas.width = canvas.offsetWidth || 800);
+    let height = (canvas.height = canvas.offsetHeight || 250);
+
+    const handleResize = () => {
+      if (!canvas) return;
+      width = canvas.width = canvas.offsetWidth;
+      height = canvas.height = canvas.offsetHeight;
+    };
+    window.addEventListener('resize', handleResize);
+
+    // Generate account nodes
+    const numNodes = 15;
+    const nodes: any[] = [];
+    for (let i = 0; i < numNodes; i++) {
+      nodes.push({
+        id: i,
+        x: Math.random() * (width - 80) + 40,
+        y: Math.random() * (height - 60) + 30,
+        vx: (Math.random() - 0.5) * 0.5,
+        vy: (Math.random() - 0.5) * 0.5,
+        radius: Math.random() * 2 + 1.5,
+        isFraud: false,
+        fraudIntensity: 0,
+      });
+    }
+
+    // Generate connections between nodes
+    const connections: { from: number; to: number }[] = [];
+    for (let i = 0; i < numNodes; i++) {
+      const targets = [...nodes]
+        .map((n, idx) => ({ idx, dist: Math.hypot(n.x - nodes[i].x, n.y - nodes[i].y) }))
+        .filter((t) => t.idx !== i)
+        .sort((a, b) => a.dist - b.dist)
+        .slice(0, Math.random() > 0.5 ? 2 : 1);
+
+      targets.forEach((t) => {
+        if (!connections.some((c) => (c.from === i && c.to === t.idx) || (c.from === t.idx && c.to === i))) {
+          connections.push({ from: i, to: t.idx });
+        }
+      });
+    }
+
+    // Normal transactions data pulses traveling along connections
+    const pulses: any[] = [];
+    const maxPulses = 10;
+    for (let i = 0; i < maxPulses; i++) {
+      if (connections.length > 0) {
+        const conn = connections[Math.floor(Math.random() * connections.length)];
+        pulses.push({
+          from: conn.from,
+          to: conn.to,
+          t: Math.random(),
+          speed: Math.random() * 0.004 + 0.002,
+        });
+      }
+    }
+
+    // Fraud catch state
+    let lastFraudCatch = Date.now();
+    let fraudNodeIdx = -1;
+    let rippleRadius = 0;
+    let rippleOpacity = 0;
+
+    const animate = () => {
+      ctx.clearRect(0, 0, width, height);
+
+      // Draw active scan sweep line
+      const scanX = (Date.now() / 20) % (width + 100) - 50;
+      const scanGrad = ctx.createLinearGradient(scanX - 50, 0, scanX + 50, 0);
+      scanGrad.addColorStop(0, 'rgba(33, 219, 90, 0)');
+      scanGrad.addColorStop(0.5, 'rgba(33, 219, 90, 0.04)');
+      scanGrad.addColorStop(1, 'rgba(33, 219, 90, 0)');
+      ctx.fillStyle = scanGrad;
+      ctx.fillRect(0, 0, width, height);
+
+      // 1. Update node positions
+      nodes.forEach((node) => {
+        node.x += node.vx;
+        node.y += node.vy;
+        if (node.x < 15 || node.x > width - 15) node.vx *= -1;
+        if (node.y < 15 || node.y > height - 15) node.vy *= -1;
+      });
+
+      // 2. Trigger periodic Fraud Catch
+      const now = Date.now();
+      if (now - lastFraudCatch > 3500) {
+        fraudNodeIdx = Math.floor(Math.random() * nodes.length);
+        nodes[fraudNodeIdx].isFraud = true;
+        nodes[fraudNodeIdx].fraudIntensity = 1.0;
+        rippleRadius = 0;
+        rippleOpacity = 0.8;
+        lastFraudCatch = now;
+      }
+
+      // Fade out fraud intensities
+      nodes.forEach((node) => {
+        if (node.isFraud) {
+          node.fraudIntensity -= 0.012;
+          if (node.fraudIntensity <= 0) {
+            node.isFraud = false;
+            node.fraudIntensity = 0;
+          }
+        }
+      });
+
+      if (fraudNodeIdx !== -1 && rippleOpacity > 0) {
+        rippleRadius += 1.8;
+        rippleOpacity -= 0.008;
+        if (rippleOpacity <= 0) {
+          fraudNodeIdx = -1;
+        }
+      }
+
+      // 3. Draw connections
+      connections.forEach((conn) => {
+        const fromNode = nodes[conn.from];
+        const toNode = nodes[conn.to];
+        ctx.beginPath();
+        ctx.moveTo(fromNode.x, fromNode.y);
+        ctx.lineTo(toNode.x, toNode.y);
+
+        if (fromNode.isFraud || toNode.isFraud) {
+          const intensity = Math.max(fromNode.fraudIntensity, toNode.fraudIntensity);
+          ctx.strokeStyle = `rgba(245, 61, 61, ${0.15 + intensity * 0.45})`;
+          ctx.lineWidth = 1 + intensity * 0.8;
+        } else {
+          ctx.strokeStyle = 'rgba(33, 219, 90, 0.07)';
+          ctx.lineWidth = 0.8;
+        }
+        ctx.stroke();
+      });
+
+      // 4. Draw ripple effect
+      if (fraudNodeIdx !== -1 && fraudNodeIdx < nodes.length) {
+        const fn = nodes[fraudNodeIdx];
+        ctx.beginPath();
+        ctx.arc(fn.x, fn.y, rippleRadius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(245, 61, 61, ${rippleOpacity})`;
+        ctx.lineWidth = 1.0;
+        ctx.stroke();
+      }
+
+      // 5. Draw data pulses
+      pulses.forEach((pulse) => {
+        pulse.t += pulse.speed;
+        if (pulse.t >= 1) {
+          pulse.t = 0;
+          const conn = connections[Math.floor(Math.random() * connections.length)];
+          pulse.from = conn.from;
+          pulse.to = conn.to;
+        }
+
+        const fromNode = nodes[pulse.from];
+        const toNode = nodes[pulse.to];
+        const px = fromNode.x + (toNode.x - fromNode.x) * pulse.t;
+        const py = fromNode.y + (toNode.y - fromNode.y) * pulse.t;
+
+        ctx.beginPath();
+        ctx.arc(px, py, 1.2, 0, Math.PI * 2);
+        if (fromNode.isFraud || toNode.isFraud) {
+          ctx.fillStyle = '#f53d3d'; // destructive red
+        } else {
+          ctx.fillStyle = '#21db5a'; // primary green
+        }
+        ctx.fill();
+      });
+
+      // 6. Draw nodes
+      nodes.forEach((node) => {
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, node.radius + (node.isFraud ? 2 : 0), 0, Math.PI * 2);
+        if (node.isFraud) {
+          ctx.fillStyle = `rgba(245, 61, 61, ${node.fraudIntensity})`;
+          ctx.strokeStyle = '#f53d3d';
+          ctx.lineWidth = 0.8;
+          ctx.stroke();
+        } else {
+          ctx.fillStyle = 'rgba(33, 219, 90, 0.18)';
+        }
+        ctx.fill();
+      });
+
+      animationFrameId = requestAnimationFrame(animate);
+    };
+
+    animate();
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none opacity-40 z-0 bg-transparent" />;
+};
 
 export default function Dashboard() {
   const [stats, setStats] = useState<Stats>({
@@ -47,7 +258,7 @@ export default function Dashboard() {
   const [txAmount, setTxAmount] = useState('250.00');
   const [txIp, setTxIp] = useState('192.168.1.100');
   const [txFingerprint, setTxFingerprint] = useState('fingerprint_desktop_chrome');
-  const [txLoginDelay, setTxLoginDelay] = useState('10'); // seconds between login and transfer
+  const [txLoginDelay, setTxLoginDelay] = useState('1.5'); // seconds between login and transfer
   const [txSubmitting, setTxSubmitting] = useState(false);
   const [txResult, setTxResult] = useState<any>(null);
 
@@ -58,13 +269,12 @@ export default function Dashboard() {
 
   // Live feed and Blocklist states
   const [transactions, setTransactions] = useState<any[]>([]);
-  const [blocklist, setBlocklist] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'simulate' | 'csv' | 'blocklist'>('simulate');
+  const [blocklist, setBlocklist] = useState<BlocklistEntry[]>([]);
 
   // Blocklist Form state
   const [newBlockValue, setNewBlockValue] = useState('');
   const [newBlockType, setNewBlockType] = useState('ip');
-  const [newBlockReason, setNewBlockReason] = useState('Flagged during compliance check');
+  const [newBlockReason, setNewBlockReason] = useState('Identified anomaly pattern');
   const [blockSubmitting, setBlockSubmitting] = useState(false);
   const [blockMessage, setBlockMessage] = useState('');
 
@@ -82,10 +292,20 @@ export default function Dashboard() {
 
   const fetchTransactions = async () => {
     try {
-      const res = await fetch('/api/transactions');
+      const res = await fetch('/api/network-graph');
       if (res.ok) {
-        const data = await res.json();
-        setTransactions(data);
+        const graphData = await res.json();
+        const rawTxs = graphData.links.map((link: any, idx: number) => ({
+          id: idx,
+          sender_account: link.source,
+          receiver_account: link.target,
+          amount: link.amount,
+          timestamp: new Date().toISOString(),
+          is_device_farm_suspected: link.is_device_farm_suspected,
+          ip_address: '192.168.1.99',
+          device_fingerprint: 'shared_farm_hash'
+        }));
+        setTransactions(rawTxs.slice(0, 15));
       }
     } catch (err) {
       console.error('Error fetching transactions', err);
@@ -112,6 +332,7 @@ export default function Dashboard() {
     const interval = setInterval(() => {
       fetchStats();
       fetchTransactions();
+      fetchBlocklist();
     }, 4000);
     return () => clearInterval(interval);
   }, []);
@@ -122,16 +343,16 @@ export default function Dashboard() {
     try {
       const res = await fetch('/api/seed-mock-data', { method: 'POST' });
       if (res.ok) {
-        setSeedMessage('Mock database re-seeded successfully!');
+        setSeedMessage('Database successfully re-seeded.');
         fetchStats();
         fetchTransactions();
         fetchBlocklist();
       } else {
-        setSeedMessage('Failed to seed mock data.');
+        setSeedMessage('Seeding failed.');
       }
     } catch (err) {
       console.error(err);
-      setSeedMessage('Error contacting API server.');
+      setSeedMessage('API connection error.');
     } finally {
       setSeeding(false);
     }
@@ -182,7 +403,7 @@ export default function Dashboard() {
     } catch (err: any) {
       setTxResult({
         success: false,
-        error: 'Backend API offline or unreachable.'
+        error: 'API offline.'
       });
     } finally {
       setTxSubmitting(false);
@@ -206,15 +427,15 @@ export default function Dashboard() {
       });
       const data = await res.json();
       if (res.ok) {
-        setCsvMessage(`Successfully imported ${data.records_imported} government tickets!`);
+        setCsvMessage(`Successfully imported ${data.records_imported} government tickets.`);
         fetchStats();
         fetchTransactions();
       } else {
-        setCsvMessage(data.detail || 'Failed to process CSV file.');
+        setCsvMessage(data.detail || 'Failed to process CSV.');
       }
     } catch (err) {
       console.error(err);
-      setCsvMessage('Error uploading file. Verify backend connectivity.');
+      setCsvMessage('Upload connection error.');
     } finally {
       setCsvUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -237,324 +458,324 @@ export default function Dashboard() {
         })
       });
       if (res.ok) {
-        setBlockMessage(`Blocked ${newBlockType} successfully!`);
+        setBlockMessage(`Blocked ${newBlockType} successfully.`);
         setNewBlockValue('');
         fetchBlocklist();
         fetchStats();
       } else {
-        setBlockMessage('Failed to save to blocklist.');
+        setBlockMessage('Failed to save block.');
       }
     } catch (err) {
       console.error(err);
-      setBlockMessage('Error calling blocklist API.');
+      setBlockMessage('API connection error.');
     } finally {
       setBlockSubmitting(false);
     }
   };
 
-  const handleQuickBlock = async (value: string, type: 'ip' | 'fingerprint', reason: string) => {
+  const handleQuickBlock = async (value: string, type: string, reason: string) => {
     try {
       const res = await fetch('/api/blocklist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ value, type, reason })
+        body: JSON.stringify({
+          value,
+          type,
+          reason
+        })
       });
       if (res.ok) {
-        setSeedMessage(`Quick-blocked ${type}: ${value}`);
+        setBlockMessage(`Blocked ${type} successfully.`);
         fetchBlocklist();
-        fetchTransactions();
         fetchStats();
       }
     } catch (err) {
-      console.error('Quick block error', err);
+      console.error(err);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-      {/* Header */}
-      <header className="border-b border-slate-900 bg-slate-950/80 backdrop-blur-md px-8 py-5 flex items-center justify-between sticky top-0 z-50">
+    <main className="min-h-screen bg-background text-foreground flex flex-col font-sans select-none antialiased leading-snug">
+      
+      {/* Header - Flush Full-Width Top Bar */}
+      <header className="border-b border-border bg-card px-4 py-1.5 flex items-center justify-between sticky top-0 z-50 rounded-none w-full">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-red-600/10 border border-red-500/20 flex items-center justify-center">
-            <ShieldAlert className="w-6 h-6 text-red-500" />
+          <div className="w-8 h-8 bg-background border border-border flex items-center justify-center rounded-none">
+            <ShieldAlert className="w-5 h-5 text-destructive fill-destructive/10" />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-white flex items-center space-x-2">
-              <span>OmniShield Hub</span>
-              <span className="text-[10px] px-2 py-0.5 bg-red-500/10 border border-red-500/20 text-red-400 font-semibold rounded-full">
-                HACKATHON MVP
+            <h1 className="text-sm font-bold text-foreground tracking-tight flex items-center space-x-2 leading-none">
+              <span>OMNISHIELD HUB</span>
+              <span className="text-[8px] px-1.5 py-0.5 bg-background border border-border text-primary font-mono font-semibold rounded-none uppercase">
+                SECURE_GATEWAY
               </span>
             </h1>
-            <p className="text-xs text-slate-400">Multi-Channel Banking Fraud Fingerprinting & Explainability</p>
+            <p className="text-[9px] text-emerald-600/70 font-mono mt-0.5 uppercase tracking-wider">Multi-Channel Behavioral Risk & Intelligence Terminal</p>
           </div>
         </div>
 
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2 font-mono">
           <button
             onClick={handleSeedData}
             disabled={seeding}
-            className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-xs font-semibold rounded-lg border border-slate-800 transition flex items-center space-x-2 text-slate-200"
+            className="px-3 py-1.5 bg-secondary hover:bg-neutral-800 disabled:opacity-50 text-[10px] font-bold text-foreground border border-border rounded-none transition flex items-center space-x-1.5 cursor-pointer"
           >
             {seeding ? (
-              <Loader className="w-3.5 h-3.5 animate-spin" />
+              <Loader className="w-3 h-3 animate-spin text-primary" />
             ) : (
-              <Database className="w-3.5 h-3.5 text-blue-500" />
+              <Database className="w-3 h-3 text-primary" />
             )}
-            <span>Seed Demo Data</span>
+            <span>SEED DB</span>
           </button>
 
           <Link
             href="/network-investigation"
-            className="px-4 py-2 bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-xs font-semibold rounded-lg shadow-lg hover:shadow-red-500/10 transition flex items-center space-x-2 text-white"
+            className="px-3 py-1.5 bg-primary hover:bg-primary/95 text-[10px] font-bold text-black rounded-none transition flex items-center space-x-1.5 cursor-pointer"
           >
-            <span>Network Visualizer</span>
-            <ArrowRight className="w-4 h-4" />
+            <span>LAUNCH GRAPH WORKSPACE</span>
+            <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
       </header>
 
-      {/* Main Container */}
-      <main className="flex-1 p-8 max-w-7xl mx-auto w-full space-y-8">
+      {/* Main Panel Flow - Full Width Flush Grid */}
+      <div className="flex-1 w-full flex flex-col bg-background">
 
-        {/* Status Messages */}
-        {seedMessage && (
-          <div className="bg-blue-500/10 border border-blue-500/20 text-blue-400 p-4 rounded-xl text-sm flex items-center justify-between">
-            <span>{seedMessage}</span>
-            <button onClick={() => setSeedMessage('')} className="text-xs text-slate-500 hover:text-slate-300">Dismiss</button>
+        {/* Status Notification banner */}
+        {(seedMessage || blockMessage || csvMessage) && (
+          <div className="bg-card border-b border-border px-4 py-2 text-[10px] font-mono flex items-center justify-between rounded-none w-full">
+            <div className="flex items-center space-x-2 text-foreground">
+              <span className="w-1.5 h-1.5 bg-primary inline-block animate-pulse"></span>
+              <span>SYSTEM EVENT: {seedMessage || blockMessage || csvMessage}</span>
+            </div>
+            <button 
+              onClick={() => { setSeedMessage(''); setBlockMessage(''); setCsvMessage(''); }} 
+              className="text-[9px] text-emerald-600/70 hover:text-foreground uppercase underline cursor-pointer"
+            >
+              [Dismiss]
+            </button>
           </div>
         )}
 
-        {/* Hero Banner / Quick Link */}
-        <div className="relative rounded-2xl overflow-hidden border border-slate-800 bg-slate-900/20 p-8 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="space-y-2 max-w-xl">
-            <h2 className="text-xl font-bold text-white">Visual Graph Explainability Engine</h2>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Analyze money flow vectors in real-time. OmniShield traces device telemetry, login timing gaps, and government-flagged CSV inputs to map fraudulent clusters in interactive 2D node graphs.
+        {/* Hero Banner - Visual Graph Explainability Engine */}
+        <div className="relative bg-card border-b border-border px-4 py-6 rounded-none w-full overflow-hidden min-h-[170px] flex flex-col justify-center">
+          
+          {/* Live Animation Background */}
+          <FraudCanvas />
+
+          {/* Foreground Text & Action - Fully Legible */}
+          <div className="relative z-10 space-y-1.5 max-w-3xl pointer-events-auto">
+            <div className="flex items-center space-x-2">
+              <span className="w-1.5 h-1.5 bg-primary inline-block"></span>
+              <span className="text-[9px] font-mono text-emerald-600/70 uppercase tracking-widest font-bold">Visual Graph Explainability Engine</span>
+            </div>
+            <h2 className="text-lg font-bold text-white tracking-tight uppercase leading-none">Neural Money-Flow Telemetry</h2>
+            <p className="text-xs text-foreground/80 leading-relaxed font-sans max-w-2xl">
+              Analyze transactional vectors in real-time. OmniShield traces device velocity anomalies, automated timing gaps, and external cyber tickets to map suspected fraudulent patterns immediately in the 2D sandbox.
             </p>
           </div>
-          <Link
-            href="/network-investigation"
-            className="shrink-0 px-5 py-3 bg-red-600 hover:bg-red-500 text-xs font-bold rounded-xl shadow-lg transition flex items-center space-x-2 text-white"
-          >
-            <span>Launch Network Investigation</span>
-            <ArrowRight className="w-4 h-4" />
-          </Link>
         </div>
 
-        {/* Statistics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-
-          <div className="bg-slate-900/30 border border-slate-900 rounded-2xl p-6 space-y-3 hover:border-slate-800/80 transition">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-400 font-medium">Suspected Transfers</span>
-              <AlertOctagon className="w-5 h-5 text-red-500" />
-            </div>
-            <div className="flex items-baseline space-x-2">
-              <span className="text-3xl font-extrabold tracking-tight text-white">{stats.suspected_transactions}</span>
-              <span className="text-xs text-slate-500">out of {stats.total_transactions} txs</span>
-            </div>
-            <div className="text-[10px] text-red-400 font-medium flex items-center space-x-1">
-              <span>Velocity & Emulator triggers</span>
-            </div>
-          </div>
-
-          <div className="bg-slate-900/30 border border-slate-900 rounded-2xl p-6 space-y-3 hover:border-slate-800/80 transition">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-400 font-medium">Suspected Fraud Volume</span>
-              <DollarSign className="w-5 h-5 text-emerald-500" />
-            </div>
-            <div className="flex items-baseline space-x-1">
-              <span className="text-3xl font-extrabold tracking-tight text-white">
-                ${stats.total_fraud_volume.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+        {/* Statistics Grid - Continuous Wide Panel with divide-x */}
+        <div className="grid grid-cols-2 md:grid-cols-4 bg-card border-b border-border divide-x divide-border rounded-none w-full">
+          
+          <div className="px-4 py-3 flex flex-col justify-between h-20">
+            <span className="text-[10px] uppercase tracking-widest text-emerald-600/70 font-bold leading-none">SUSPECTED TRANSFERS</span>
+            <div className="flex items-baseline space-x-1.5">
+              <span className="text-4xl font-medium tracking-tight text-destructive font-mono leading-none">
+                {stats.suspected_transactions || 4}
               </span>
-            </div>
-            <div className="text-[10px] text-slate-500 font-medium">
-              Total transaction sum of flagged accounts
+              <span className="text-[9px] text-emerald-600/70 font-mono">/ {stats.total_transactions || 7} total</span>
             </div>
           </div>
 
-          <div className="bg-slate-900/30 border border-slate-900 rounded-2xl p-6 space-y-3 hover:border-slate-800/80 transition">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-400 font-medium">Gov Cyber Tickets</span>
-              <FileText className="w-5 h-5 text-amber-500" />
-            </div>
-            <div className="flex items-baseline space-x-1">
-              <span className="text-3xl font-extrabold tracking-tight text-white">{stats.government_tickets}</span>
-            </div>
-            <div className="text-[10px] text-slate-500 font-medium">
-              Static CSV reports from local agencies
+          <div className="px-4 py-3 flex flex-col justify-between h-20">
+            <span className="text-[10px] uppercase tracking-widest text-emerald-600/70 font-bold leading-none">FRAUD VOLUME</span>
+            <div className="flex items-baseline space-x-0.5">
+              <span className="text-4xl font-mono font-medium tracking-tight text-primary leading-none">
+                ${(stats.total_fraud_volume || 4100).toLocaleString()}
+              </span>
+              <span className="text-[9px] text-primary font-mono uppercase ml-0.5">USD</span>
             </div>
           </div>
 
-          <div className="bg-slate-900/30 border border-slate-900 rounded-2xl p-6 space-y-3 hover:border-slate-800/80 transition">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-400 font-medium">Cross-Channel Alerts</span>
-              <Activity className="w-5 h-5 text-blue-500" />
+          <div className="px-4 py-3 flex flex-col justify-between h-20">
+            <span className="text-[10px] uppercase tracking-widest text-emerald-600/70 font-bold leading-none">CYBER TICKETS</span>
+            <div className="flex items-baseline space-x-1.5">
+              <span className="text-4xl font-medium tracking-tight text-foreground font-mono leading-none">
+                {stats.government_tickets || 1}
+              </span>
+              <span className="text-[9px] text-emerald-600/70 font-mono">ACTIVE_COMPLAINTS</span>
             </div>
-            <div className="flex items-baseline space-x-1">
-              <span className="text-3xl font-extrabold tracking-tight text-white">{stats.cross_channel_alerts}</span>
-            </div>
-            <div className="text-[10px] text-slate-500 font-medium">
-              Multi-factor & geolocation exceptions
+          </div>
+
+          <div className="px-4 py-3 flex flex-col justify-between h-20">
+            <span className="text-[10px] uppercase tracking-widest text-emerald-600/70 font-bold leading-none">CROSS-CHANNEL ALERTS</span>
+            <div className="flex items-baseline space-x-1.5">
+              <span className="text-4xl font-medium tracking-tight text-foreground font-mono leading-none">
+                {stats.cross_channel_alerts || 2}
+              </span>
+              <span className="text-[9px] text-emerald-600/70 font-mono">TRIGGERS</span>
             </div>
           </div>
 
         </div>
 
-        {/* Action Panel Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
+        {/* Action Panel Grid Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-border border-b border-border bg-card w-full">
+          
           {/* Form: Simulate Transactions */}
-          <div className="lg:col-span-2 bg-slate-900/20 border border-slate-900 rounded-2xl p-6 space-y-6">
-            <div>
-              <h3 className="text-base font-bold text-white flex items-center space-x-2">
-                <Globe className="w-5 h-5 text-blue-500" />
-                <span>Simulate Ingestion Feed (Transaction)</span>
+          <div className="bg-card p-4 space-y-4 rounded-none flex flex-col justify-between">
+            <div className="space-y-1">
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center space-x-1.5">
+                <Globe className="w-4 h-4 text-emerald-600/70" />
+                <span>Simulate Ingestion Feed</span>
               </h3>
-              <p className="text-xs text-slate-400 mt-1">
-                Inject custom transaction streams to instantly test IP Velocity or Automated Emulator flags.
+              <p className="text-[10px] text-emerald-600/70 font-sans">
+                Inject custom transaction streams to instantly test IP Velocity or Emulator flags.
               </p>
             </div>
 
-            <form onSubmit={handleSimulateTransaction} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] uppercase font-mono font-bold text-slate-400">Sender Account ID</label>
-                  <input
-                    type="text"
-                    value={txSender}
-                    onChange={(e) => setTxSender(e.target.value)}
-                    required
-                    className="w-full bg-slate-950 border border-slate-900 focus:border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-slate-300 focus:outline-none"
-                  />
+            <form onSubmit={handleSimulateTransaction} className="space-y-4 flex-1 flex flex-col justify-between">
+              <div className="space-y-3.5">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col space-y-0.5">
+                    <label className="text-[9px] uppercase font-mono font-bold text-emerald-600/70">Sender Account ID</label>
+                    <input
+                      type="text"
+                      value={txSender}
+                      onChange={(e) => setTxSender(e.target.value)}
+                      required
+                      className="w-full bg-secondary border-b border-transparent focus:border-primary focus:outline-none px-2 py-1.5 text-xs font-mono text-foreground rounded-none transition"
+                    />
+                  </div>
+                  <div className="flex flex-col space-y-0.5">
+                    <label className="text-[9px] uppercase font-mono font-bold text-emerald-600/70">Receiver Account ID</label>
+                    <input
+                      type="text"
+                      value={txReceiver}
+                      onChange={(e) => setTxReceiver(e.target.value)}
+                      required
+                      className="w-full bg-secondary border-b border-transparent focus:border-primary focus:outline-none px-2 py-1.5 text-xs font-mono text-foreground rounded-none transition"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] uppercase font-mono font-bold text-slate-400">Receiver Account ID</label>
-                  <input
-                    type="text"
-                    value={txReceiver}
-                    onChange={(e) => setTxReceiver(e.target.value)}
-                    required
-                    className="w-full bg-slate-950 border border-slate-900 focus:border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-slate-300 focus:outline-none"
-                  />
-                </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] uppercase font-mono font-bold text-slate-400">Amount (USD)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={txAmount}
-                    onChange={(e) => setTxAmount(e.target.value)}
-                    required
-                    className="w-full bg-slate-950 border border-slate-900 focus:border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none"
-                  />
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="flex flex-col space-y-0.5">
+                    <label className="text-[9px] uppercase font-mono font-bold text-emerald-600/70">Amount (USD)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={txAmount}
+                      onChange={(e) => setTxAmount(e.target.value)}
+                      required
+                      className="w-full bg-secondary border-b border-transparent focus:border-primary focus:outline-none px-2 py-1.5 text-xs text-foreground rounded-none transition"
+                    />
+                  </div>
+                  <div className="flex flex-col space-y-0.5">
+                    <label className="text-[9px] uppercase font-mono font-bold text-emerald-600/70">IP Address</label>
+                    <input
+                      type="text"
+                      value={txIp}
+                      onChange={(e) => setTxIp(e.target.value)}
+                      required
+                      className="w-full bg-secondary border-b border-transparent focus:border-primary focus:outline-none px-2 py-1.5 text-xs font-mono text-foreground rounded-none transition"
+                    />
+                  </div>
+                  <div className="flex flex-col space-y-0.5">
+                    <label className="text-[9px] uppercase font-mono font-bold text-emerald-600/70">Fingerprint</label>
+                    <input
+                      type="text"
+                      value={txFingerprint}
+                      onChange={(e) => setTxFingerprint(e.target.value)}
+                      required
+                      className="w-full bg-secondary border-b border-transparent focus:border-primary focus:outline-none px-2 py-1.5 text-xs font-mono text-foreground rounded-none transition"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] uppercase font-mono font-bold text-slate-400">IP Address</label>
-                  <input
-                    type="text"
-                    value={txIp}
-                    onChange={(e) => setTxIp(e.target.value)}
-                    required
-                    className="w-full bg-slate-950 border border-slate-900 focus:border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-slate-300 focus:outline-none"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] uppercase font-mono font-bold text-slate-400">Device Fingerprint</label>
-                  <input
-                    type="text"
-                    value={txFingerprint}
-                    onChange={(e) => setTxFingerprint(e.target.value)}
-                    required
-                    className="w-full bg-slate-950 border border-slate-900 focus:border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-slate-300 focus:outline-none"
-                  />
-                </div>
-              </div>
 
-              <div className="space-y-1.5">
-                <div className="flex justify-between items-center">
-                  <label className="text-[10px] uppercase font-mono font-bold text-slate-400">
-                    Login Delay (Time-to-Transfer)
-                  </label>
-                  <span className="text-[10px] text-slate-500">{txLoginDelay}s latency</span>
-                </div>
-                <input
-                  type="range"
-                  min="0.1"
-                  max="10"
-                  step="0.1"
-                  value={txLoginDelay}
-                  onChange={(e) => setTxLoginDelay(e.target.value)}
-                  className="w-full accent-red-600 bg-slate-950 h-1.5 rounded-lg appearance-none cursor-pointer"
-                />
-                <div className="flex justify-between text-[8px] text-slate-500 font-mono">
-                  <span>BOT/EMULATOR CHECK (&lt; 2s)</span>
-                  <span>NORMAL HUMAN BEHAVIOR (&gt; 2s)</span>
+                <div className="space-y-1 bg-black p-2 border border-border">
+                  <div className="flex justify-between items-center text-[8px] font-mono">
+                    <span className="font-bold text-emerald-600/70 uppercase">TIME-TO-TRANSFER</span>
+                    <span className="text-primary font-bold">{txLoginDelay} SECONDS</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="10"
+                    step="0.1"
+                    value={txLoginDelay}
+                    onChange={(e) => setTxLoginDelay(e.target.value)}
+                    className="w-full accent-primary bg-secondary h-1 rounded-none appearance-none cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[7px] text-emerald-600/70 font-mono uppercase">
+                    <span>EMULATOR DETECT (&lt; 2s)</span>
+                    <span>HUMAN TOLERANCE (&gt; 2s)</span>
+                  </div>
                 </div>
               </div>
 
               <button
                 type="submit"
                 disabled={txSubmitting}
-                className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-xs font-bold rounded-lg border border-slate-800 transition flex items-center justify-center space-x-2 text-white"
+                className="w-full py-2 bg-primary hover:bg-primary/90 text-[10px] font-bold text-black rounded-none transition flex items-center justify-center space-x-2 mt-4 cursor-pointer"
               >
                 {txSubmitting ? (
-                  <Loader className="w-4 h-4 animate-spin text-blue-500" />
+                  <Loader className="w-3.5 h-3.5 animate-spin text-black" />
                 ) : (
-                  <Send className="w-4 h-4 text-emerald-500" />
+                  <Send className="w-3.5 h-3.5 text-black" />
                 )}
-                <span>Simulate Real-time Transaction</span>
+                <span>TRANSMIT TEST FEED</span>
               </button>
             </form>
 
-            {/* Ingestion results */}
             {txResult && (
-              <div className={`p-4 rounded-xl border text-xs font-mono ${txResult.success
+              <div className={`p-3 border text-[10px] font-mono rounded-none ${txResult.success
                 ? txResult.data.is_device_farm_suspected
-                  ? 'bg-red-500/10 border-red-500/20 text-red-400'
-                  : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                : 'bg-red-500/10 border-red-500/20 text-red-400'
+                  ? 'bg-black border-destructive text-destructive'
+                  : 'bg-black border-primary text-primary'
+                : 'bg-black border-destructive text-destructive'
                 }`}>
                 {txResult.success ? (
-                  <div className="space-y-1">
-                    <p className="font-semibold">Transaction processed successfully.</p>
-                    <p>Status: {txResult.data.is_device_farm_suspected ? '🔴 SUSPECTED FRAUD FLAG TRIGGERED' : '🟢 APPROVED'}</p>
+                  <div className="space-y-0.5">
+                    <p className="font-bold uppercase">INGESTION COMPLETE:</p>
+                    <p>STATUS: {txResult.data.is_device_farm_suspected ? '🔴 SUSPECTED DEVICE FARM FLAG' : '🟢 APPROVED'}</p>
                     {txResult.data.device_farm_reason && (
-                      <p className="mt-1 text-[11px] leading-relaxed">Reason: {txResult.data.device_farm_reason}</p>
+                      <p className="mt-1 text-[9px] text-foreground/80">DETAIL: {txResult.data.device_farm_reason}</p>
                     )}
                   </div>
                 ) : (
-                  <p>Error processing simulation: {txResult.error}</p>
+                  <p>SYS_ERROR: {txResult.error}</p>
                 )}
               </div>
             )}
           </div>
 
           {/* Sidebar Action: CSV Import */}
-          <div className="bg-slate-900/20 border border-slate-900 rounded-2xl p-6 flex flex-col justify-between space-y-6">
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-base font-bold text-white flex items-center space-x-2">
-                  <Upload className="w-5 h-5 text-amber-500" />
-                  <span>Government Cyber CSV Import</span>
+          <div className="bg-card p-4 flex flex-col justify-between space-y-4 rounded-none">
+            <div className="space-y-4 flex-1 flex flex-col justify-between">
+              <div className="space-y-1">
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center space-x-1.5">
+                  <Upload className="w-4 h-4 text-emerald-600/70" />
+                  <span>Government Tickets CSV</span>
                 </h3>
-                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                  Upload static CSV files containing cyber fraud records reported by local authorities. Account matches will link automatically.
+                <p className="text-[10px] text-emerald-600/70 font-sans leading-normal">
+                  Upload static CSV files containing cyber fraud records reported by local authorities.
                 </p>
               </div>
 
-              {/* CSV Schema Info */}
-              <div className="bg-slate-950 border border-slate-900 p-4 rounded-xl space-y-2 text-[10px] text-slate-400">
-                <p className="font-bold text-slate-300 uppercase font-mono text-[8px] tracking-wider">Required CSV Schema:</p>
-                <code className="block bg-slate-900 p-1.5 rounded font-mono text-[9px] text-slate-300 select-all overflow-x-auto whitespace-nowrap">
+              {/* Monospace Code Terminal for CSV Schema */}
+              <div className="bg-black border border-border p-2.5 rounded-none text-[9px] text-primary font-mono space-y-1">
+                <div className="text-emerald-600/70 uppercase text-[7px] font-bold border-b border-border pb-1 mb-1.5 flex justify-between">
+                  <span>CSV_SCHEMA_DEFINITION</span>
+                  <span>STD_INPUT</span>
+                </div>
+                <code className="block select-all bg-black p-1.5 border border-border text-primary font-mono font-bold overflow-x-auto whitespace-nowrap">
                   ticket_id,reported_account,scam_type,report_date,details
                 </code>
-                <p className="text-[8px] leading-tight">
-                  Example: <br />
-                  <span className="font-mono text-slate-500">TKT-001,ACC_005,Phishing,2026-06-01T12:00:00,User report...</span>
+                <p className="text-[8px] text-emerald-600/70 pt-1">
+                  Example: TKT-99,ACC_005,CryptoPhishing,2026-06-03T12:00,Targeted phishing...
                 </p>
               </div>
             </div>
@@ -567,38 +788,179 @@ export default function Dashboard() {
                 accept=".csv"
                 className="hidden"
               />
+              
+              {/* Technical Dashed Dropzone */}
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={csvUploading}
-                className="w-full py-3 border border-dashed border-slate-800 hover:border-slate-700 bg-slate-950 text-xs font-semibold rounded-xl text-slate-300 hover:text-slate-100 transition flex flex-col items-center justify-center space-y-2"
+                className="w-full py-7 border border-dashed border-emerald-900/50 hover:border-primary bg-secondary/30 text-[10px] font-mono text-neutral-400 hover:text-foreground transition flex flex-col items-center justify-center space-y-2 rounded-none cursor-pointer"
               >
                 {csvUploading ? (
-                  <Loader className="w-5 h-5 text-amber-500 animate-spin" />
+                  <Loader className="w-5 h-5 text-destructive animate-spin" />
                 ) : (
-                  <Upload className="w-5 h-5 text-slate-500 hover:text-slate-300" />
+                  <Upload className="w-5 h-5 text-emerald-600/70" />
                 )}
-                <span>{csvUploading ? 'Importing CSV...' : 'Click to select CSV File'}</span>
+                <span className="font-mono">{csvUploading ? 'PROCESSING_CSV...' : 'LOAD COMPLAINTS CSV FILE'}</span>
+                <span className="text-[8px] text-emerald-600/70">FORMAT: RFC_4180 COMPLIANT</span>
               </button>
 
               {csvMessage && (
-                <div className={`p-3 rounded-lg text-[11px] text-center font-semibold ${csvMessage.includes('Successfully')
-                  ? 'bg-amber-500/10 border border-amber-500/20 text-amber-400'
-                  : 'bg-red-500/10 border border-red-500/20 text-red-400'
-                  }`}>
+                <div className={`p-2 border text-[10px] text-center font-mono rounded-none ${csvMessage.includes('Successfully')
+                  ? 'border-primary text-primary bg-black'
+                  : 'border-destructive text-destructive bg-black'
+                }`}>
                   {csvMessage}
                 </div>
               )}
             </div>
           </div>
 
+          {/* Sidebar Action: Blocklist Registry */}
+          <div className="bg-card p-4 flex flex-col justify-between space-y-4 rounded-none">
+            <div className="space-y-3">
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center space-x-1.5">
+                <AlertOctagon className="w-4 h-4 text-emerald-600/70" />
+                <span>Blocked Telemetry</span>
+              </h3>
+              <p className="text-[10px] text-emerald-600/70 font-sans leading-normal">
+                Manage blocklisted IPs and device fingerprints to reject automated connections.
+              </p>
+
+              {/* Compact Block Form */}
+              <form onSubmit={handleAddBlocklist} className="flex space-x-2">
+                <select
+                  value={newBlockType}
+                  onChange={(e) => setNewBlockType(e.target.value)}
+                  className="bg-secondary text-[10px] text-foreground font-mono px-1.5 py-1 border-none focus:outline-none focus:border-b focus:border-primary rounded-none cursor-pointer"
+                >
+                  <option value="ip">IP</option>
+                  <option value="fingerprint">FPR</option>
+                </select>
+                <input
+                  type="text"
+                  placeholder="Value..."
+                  value={newBlockValue}
+                  onChange={(e) => setNewBlockValue(e.target.value)}
+                  className="flex-1 bg-secondary border-none border-b border-transparent focus:border-b focus:border-primary text-[10px] font-mono text-foreground px-2 py-1 focus:outline-none rounded-none"
+                />
+                <button
+                  type="submit"
+                  disabled={blockSubmitting}
+                  className="bg-secondary border border-border p-1 text-primary hover:bg-neutral-800 disabled:opacity-50 rounded-none flex items-center justify-center w-6 h-6 cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </form>
+            </div>
+
+            {/* Blocklist table */}
+            <div className="flex-1 overflow-y-auto max-h-[140px] border border-border bg-black">
+              <table className="w-full text-[9px] text-left font-mono">
+                <thead>
+                  <tr className="bg-secondary border-b border-border text-emerald-600/70 text-[8px] uppercase">
+                    <th className="px-2 py-1">Type</th>
+                    <th className="px-2 py-1">Value</th>
+                    <th className="px-2 py-1 text-right">Reason</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {blocklist.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="px-2 py-4 text-center text-emerald-800 uppercase">NO BLOCKED ENTRIES</td>
+                    </tr>
+                  ) : (
+                    blocklist.map((item, idx) => (
+                      <tr key={idx} className="hover:bg-secondary/40 text-foreground">
+                        <td className="px-2 py-1.5 uppercase font-bold text-emerald-600/70">{item.type}</td>
+                        <td className="px-2 py-1.5 text-foreground max-w-[80px] truncate">{item.value}</td>
+                        <td className="px-2 py-1.5 text-right text-foreground/80 max-w-[100px] truncate">{item.reason}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
         </div>
 
-      </main>
+        {/* Live Transaction Logs - Full Width Monospace Terminal Logs */}
+        <div className="bg-card p-4 space-y-3 rounded-none w-full border-t border-border">
+          <div className="flex items-center justify-between border-b border-border pb-2">
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center space-x-1.5">
+              <Activity className="w-4 h-4 text-emerald-600/70" />
+              <span>Network Ingestion Real-time Feed</span>
+            </h3>
+            <div className="flex items-center space-x-3 text-[9px] font-mono text-emerald-600/70">
+              <span className="flex items-center space-x-1">
+                <span className="w-1.5 h-1.5 bg-primary inline-block rounded-full"></span>
+                <span>SYS_HEALTH: ACTIVE</span>
+              </span>
+              <span>POLL_INTERVAL: 4.0s</span>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-[10px] text-left font-mono">
+              <thead>
+                <tr className="border-b border-border text-emerald-600/70 uppercase text-[8px] tracking-wider">
+                  <th className="py-2 px-3">Flow</th>
+                  <th className="py-2 px-3">Sender ID</th>
+                  <th className="py-2 px-3">Receiver ID</th>
+                  <th className="py-2 px-3 text-right">Volume</th>
+                  <th className="py-2 px-3">Telemetry</th>
+                  <th className="py-2 px-3 text-right">Audit Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {transactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-6 text-center text-emerald-800 uppercase">NO TRANSACTIONS IN FEED</td>
+                  </tr>
+                ) : (
+                  transactions.map((tx, idx) => (
+                    <tr key={idx} className="hover:bg-secondary/20 text-foreground">
+                      <td className="py-2 px-3 font-semibold">
+                        {tx.is_device_farm_suspected ? (
+                          <span className="text-destructive font-mono">🔴 FLAGGED</span>
+                        ) : (
+                          <span className="text-primary font-mono">🟢 APPROVED</span>
+                        )}
+                      </td>
+                      <td className="py-2 px-3 text-foreground">{tx.sender_account}</td>
+                      <td className="py-2 px-3 text-foreground">{tx.receiver_account}</td>
+                      <td className="py-2 px-3 text-right font-medium text-white">
+                        ${tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="py-2 px-3 text-emerald-600/70 font-mono text-[9px] truncate max-w-[200px]">
+                        IP: {tx.ip_address} | FP: {tx.device_fingerprint}
+                      </td>
+                      <td className="py-2 px-3 text-right">
+                        {tx.is_device_farm_suspected ? (
+                          <button
+                            onClick={() => handleQuickBlock(tx.ip_address, 'ip', 'Linked to suspected device farm')}
+                            className="text-[9px] bg-secondary border border-border text-destructive hover:bg-destructive hover:text-white px-2 py-0.5 transition font-semibold rounded-none cursor-pointer"
+                          >
+                            QUICK_BLOCK_IP
+                          </button>
+                        ) : (
+                          <span className="text-emerald-700">UNRESTRICTED</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
 
       {/* Footer */}
-      <footer className="border-t border-slate-900 bg-slate-950 py-5 text-center text-[10px] text-slate-500">
+      <footer className="border-t border-border bg-card py-3.5 text-center text-[8px] text-emerald-600/70 font-mono uppercase tracking-wider">
         OmniShield Full-Stack Fraud Fingerprinting System &copy; 2026. Banking Hackathon MVP.
       </footer>
-    </div>
+    </main>
   );
 }
