@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+pydantic>=2.0.0
+sqlmodel
+pandas
+python-dotenv
+langchain
+langchain-openai
+langchain-google-genai
+python-multipart

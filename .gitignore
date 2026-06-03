@@ -1,0 +1,22 @@
+# Python
+backend/venv/
+backend/.env
+backend/fraud_detection.db
+backend/__pycache__/
+backend/**/*.pyc
+backend/.pytest_cache/
+
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.env*.local
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# OS / IDE Files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
