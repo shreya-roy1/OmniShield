@@ -1,0 +1,124 @@
+# OmniShield 🛡️
+
+**OmniShield** is a Full-Stack Fraud Fingerprinting & Network Sandbox platform built for a banking hackathon. It ingests multi-channel transaction feeds, evaluates device parameters for velocity and emulator anomalies, maps cash routing graphs, and generates AI-driven compliance reports (SAR) for investigators.
+
+![Network Graph](assets/network_graph.png)
+
+---
+
+## 🏗️ Architecture & Flow
+
+```mermaid
+graph TD
+    A[Real-time Transactions JSON] -->|POST /api/transactions| B(FastAPI Server)
+    C[Gov Cyber Tickets CSV] -->|POST /api/upload-government-tickets| B
+    D[Cross-Channel Alerts JSON] -->|POST /api/alerts| B
+    
+    B -->|SQLModel ORM| E[(SQLite Database)]
+    B -->|Rule Engine| F[detector.py Heuristics]
+    B -->|LangChain Prompt| G[llm.py SAR Compiler]
+    
+    H[Next.js Client] -->|GET /api/network-graph| B
+    H -->|GET /api/statistics| B
+    H -->|GET /api/generate-sar| B
+```
+
+---
+
+## 🚀 Key Features
+
+### 1. Multi-Feed Data Ingestion
+* **Real-time Transactions**: Receives telemetry data (IP, fingerprint, login timestamps) alongside transaction payloads.
+* **Government CSV Tickets**: Upload static list of cyber complaints from state authorities, automatically matching and linking to user nodes.
+* **Cross-Channel Security Alerts**: Tracks contextual exceptions (e.g. failed password counts, geo-location hops).
+
+### 2. Heuristic Behavioral Fingerprinting (`detector.py`)
+* **IP Velocity Check**: Detects if multiple unique account IDs execute money transfers from the exact same IP address or hardware fingerprint within a 5-minute window.
+* **Retroactive Flagging**: When a velocity check triggers, the system retroactively updates previous clean transactions within the 5-minute window to flag the entire chain.
+* **Emulator Bot Check**: Analyzes "Time-to-Transfer" (latency between login and execution). Latencies under `2.0 seconds` trigger automated emulator flags.
+
+### 3. Interactive Network Sandbox
+* **Visual Graph**: An interactive canvas-based 2D force-directed node graph representing accounts (nodes) and cash flows (links).
+* **Dynamic Node Coloring**:
+  - **Teal**: Normal active accounts.
+  - **Red**: Suspected Device Farm accounts.
+  - **Orange**: Government cyber ticket matches.
+  - **Blue**: Cross-Channel alerts.
+  - **Pink**: Current selection under investigation.
+* **Quick Select**: Dropdown target lock-on to select nodes instantly and bypass canvas click boundaries.
+
+### 4. AI-Driven Compliance Compiler (SAR)
+* Queries database context (linked alerts, velocity details, money flows) and compiles a professional 3-paragraph **Suspicious Activity Report (SAR)** following FinCEN compliance guidelines.
+* Supported by **LangChain** utilizing OpenAI/Gemini APIs, with a high-fidelity template-based generator fallback for offline use.
+
+---
+
+## 🛠️ Tech Stack
+
+* **Frontend**: Next.js 15 (App Router), TypeScript, Tailwind CSS, `react-force-graph-2d`, Lucide React
+* **Backend**: FastAPI (Python), SQLModel (SQLAlchemy under-the-hood)
+* **Database**: SQLite (local fallback) / PostgreSQL compatible
+* **AI/LLM**: LangChain, python-dotenv
+
+---
+
+## 💻 Getting Started (Local Run)
+
+### Prerequisites
+* Python 3.10+
+* Node.js v18+ & npm
+
+### 1. Set Up Backend (FastAPI)
+1. Navigate to the backend directory:
+   ```bash
+   cd backend
+   ```
+2. Initialize virtual environment and activate:
+   * **Windows (PowerShell)**:
+     ```powershell
+     python -m venv venv
+     .\venv\Scripts\Activate.ps1
+     ```
+   * **macOS/Linux**:
+     ```bash
+     python -m venv venv
+     source venv/bin/activate
+     ```
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. Start the API server:
+   ```bash
+   uvicorn app.main:app --port 8000 --reload
+   ```
+   *The Swagger interactive docs will be available at `http://localhost:8000/docs`.*
+
+### 2. Set Up Frontend (Next.js)
+1. Navigate to the frontend directory:
+   ```bash
+   cd ../frontend
+   ```
+2. Install npm packages:
+   ```bash
+   npm install
+   ```
+3. Run the Next.js development server:
+   ```bash
+   npm run dev
+   ```
+4. Open **`http://localhost:3000`** in your browser.
+
+---
+
+## 🧪 Simulation & Testing
+
+To seed the database with a pre-configured multi-channel scenario (velocity flags, emulator triggers, government tickets, and alerts):
+
+1. Run the backend test suite:
+   ```bash
+   cd backend
+   .\venv\Scripts\python.exe test_endpoints.py
+   ```
+2. Alternatively, click the **"Seed Demo Data"** button in the header of the frontend landing dashboard (`http://localhost:3000`).
+3. Form fields on the dashboard let you simulate transaction flows in real-time to watch heuristic flags trigger dynamically.
