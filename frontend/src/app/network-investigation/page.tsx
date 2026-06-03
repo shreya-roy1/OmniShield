@@ -103,26 +103,26 @@ export default function NetworkInvestigation() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans select-none antialiased leading-snug">
-      {/* Header */}
+      {/* Header - Compressed padding functional navigation bar */}
       <header className="border-b border-border bg-card px-4 py-1.5 flex items-center justify-between sticky top-0 z-50 rounded-none w-full">
-        <div className="flex items-center space-x-3">
-          <Link href="/" className="p-1 hover:bg-secondary rounded-none transition text-foreground/75 hover:text-white">
+        <div className="flex items-center space-x-2.5">
+          <Link href="/" className="p-1 hover:bg-secondary rounded-none transition text-neutral-400 hover:text-white">
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <div>
-            <h1 className="text-sm font-bold text-white tracking-tight flex items-center space-x-2 leading-none">
-              <ShieldAlert className="w-5 h-5 text-destructive" />
+            <h1 className="text-xs font-bold text-white tracking-tight flex items-center space-x-2 leading-none">
+              <ShieldAlert className="w-4 h-4 text-destructive" />
               <span>Network Investigation Sandbox</span>
             </h1>
-            <p className="text-[9px] text-emerald-600/70 font-mono mt-0.5 uppercase tracking-wider">OmniShield Graph Visualizer & Fraud Analyzer</p>
+            <p className="text-[8px] text-neutral-500 font-mono mt-0.5 uppercase tracking-wide">OmniShield Graph Visualizer & Fraud Analyzer</p>
           </div>
         </div>
         <button
           onClick={fetchGraphData}
           disabled={loading}
-          className="flex items-center space-x-1.5 px-3 py-1 bg-secondary hover:bg-neutral-800 disabled:opacity-50 text-[10px] font-semibold rounded-none border border-border transition text-foreground cursor-pointer"
+          className="flex items-center space-x-1.5 px-2.5 py-1 bg-secondary hover:bg-neutral-800 disabled:opacity-50 text-[9px] font-semibold rounded-none border border-border transition text-neutral-350 cursor-pointer"
         >
-          <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`w-2.5 h-2.5 ${loading ? 'animate-spin' : ''}`} />
           <span>Refresh Graph</span>
         </button>
       </header>
@@ -144,8 +144,8 @@ export default function NetworkInvestigation() {
           <div className="flex-1 relative min-h-[500px]">
             {loading ? (
               <div className="absolute inset-0 bg-background/95 flex flex-col items-center justify-center space-y-3 z-20 font-mono">
-                <RefreshCw className="w-6 h-6 text-emerald-600 animate-spin" />
-                <span className="text-xs text-emerald-600/80">Loading neural network connections...</span>
+                <RefreshCw className="w-5 h-5 text-neutral-550 animate-spin" />
+                <span className="text-xs text-neutral-500">Loading neural network connections...</span>
               </div>
             ) : null}
             <NetworkGraph
@@ -161,7 +161,7 @@ export default function NetworkInvestigation() {
           
           {/* Quick Select Target Dropdown */}
           <div className="space-y-1">
-            <label className="text-[9px] uppercase font-mono font-bold text-emerald-600/70 block">
+            <label className="text-[9px] uppercase font-mono font-bold text-neutral-400 block">
               Quick Select Target Profile
             </label>
             <select
@@ -172,7 +172,7 @@ export default function NetworkInvestigation() {
                 else setSelectedNode(null);
               }}
               id="target-select"
-              className="w-full bg-secondary border-b border-transparent focus:border-primary px-2 py-1.5 text-xs font-mono text-foreground focus:outline-none transition rounded-none cursor-pointer"
+              className="w-full bg-secondary border-b border-transparent focus:border-primary px-2 py-1 text-xs font-mono text-white focus:outline-none transition rounded-none cursor-pointer"
             >
               <option value="">-- Select Account to Investigate --</option>
               {graphData.nodes.map(node => (
@@ -191,10 +191,10 @@ export default function NetworkInvestigation() {
               <div className="bg-secondary p-3 rounded-none border border-border flex items-start justify-between">
                 <div className="space-y-1">
                   <div className="flex items-center space-x-2">
-                    <User className="w-4 h-4 text-emerald-500" />
-                    <h3 className="font-bold text-sm text-white">{selectedNode.name}</h3>
+                    <User className="w-3.5 h-3.5 text-neutral-400" />
+                    <h3 className="font-bold text-xs text-white">{selectedNode.name}</h3>
                   </div>
-                  <code className="text-[10px] text-emerald-600/70 font-mono block">{selectedNode.id}</code>
+                  <code className="text-[10px] text-neutral-500 font-mono block">{selectedNode.id}</code>
                 </div>
 
                 {/* Threat Tags */}
@@ -220,12 +220,12 @@ export default function NetworkInvestigation() {
               {/* Connected Transactions Section */}
               <div className="space-y-2">
                 <h4 className="font-bold text-xs text-white flex items-center space-x-1.5">
-                  <Activity className="w-3.5 h-3.5 text-emerald-600/70" />
+                  <Activity className="w-3.5 h-3.5 text-neutral-400" />
                   <span>Network Transaction Flows</span>
                 </h4>
                 <div className="border border-border rounded-none overflow-hidden bg-black max-h-[200px] overflow-y-auto">
                   <table className="w-full text-[10px] text-left font-mono">
-                    <thead className="bg-secondary text-emerald-600/70 text-[9px] uppercase font-mono tracking-wider border-b border-border">
+                    <thead className="bg-secondary text-neutral-400 text-[8px] uppercase font-mono tracking-wide border-b border-border">
                       <tr>
                         <th className="px-3 py-1.5">Direction</th>
                         <th className="px-3 py-1.5">Counterparty</th>
@@ -236,7 +236,7 @@ export default function NetworkInvestigation() {
                     <tbody className="divide-y divide-border">
                       {accountLinks.length === 0 ? (
                         <tr>
-                          <td colSpan={4} className="px-3 py-4 text-center text-emerald-800 uppercase">No active flows linked</td>
+                          <td colSpan={4} className="px-3 py-3 text-center text-neutral-600 uppercase">No active flows linked</td>
                         </tr>
                       ) : (
                         accountLinks.map((link, idx) => {
@@ -246,25 +246,25 @@ export default function NetworkInvestigation() {
                             ? (typeof link.target === 'object' ? link.target.id : link.target)
                             : srcId;
                           return (
-                            <tr key={idx} className="hover:bg-secondary/40">
-                              <td className="px-3 py-2 font-semibold">
+                            <tr key={idx} className="hover:bg-secondary/30">
+                              <td className="px-3 py-1.5 font-semibold">
                                 {isSender ? (
                                   <span className="text-destructive">Outgoing</span>
                                 ) : (
                                   <span className="text-primary">Incoming</span>
                                 )}
                               </td>
-                              <td className="px-3 py-2 text-foreground/80 max-w-[120px] truncate">
+                              <td className="px-3 py-1.5 text-neutral-300 max-w-[120px] truncate">
                                 {counterparty}
                               </td>
-                              <td className="px-3 py-2 text-right font-medium text-white">
+                              <td className="px-3 py-1.5 text-right font-medium text-white">
                                 ${link.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                               </td>
-                              <td className="px-3 py-2 text-right">
+                              <td className="px-3 py-1.5 text-right">
                                 {link.is_device_farm_suspected ? (
                                   <span className="text-destructive font-bold">FLAGGED</span>
                                 ) : (
-                                  <span className="text-emerald-700">CLEAN</span>
+                                  <span className="text-neutral-500">CLEAN</span>
                                 )}
                               </td>
                             </tr>
@@ -280,15 +280,15 @@ export default function NetworkInvestigation() {
               <div className="border-t border-border pt-4 flex-1 flex flex-col min-h-[300px]">
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="font-bold text-xs text-white flex items-center space-x-1.5">
-                    <FileText className="w-3.5 h-3.5 text-emerald-600/70" />
+                    <FileText className="w-3.5 h-3.5 text-neutral-400" />
                     <span>Auto-Report Generator (SAR)</span>
                   </h4>
                   {!sarReport && !sarLoading && (
                     <button
                       onClick={handleGenerateSAR}
-                      className="px-3 py-1 bg-primary hover:bg-primary/95 text-[10px] font-bold text-black rounded-none transition flex items-center space-x-1.5 cursor-pointer"
+                      className="px-2.5 py-1 bg-primary hover:bg-primary/90 text-[9px] font-bold text-black rounded-none transition flex items-center space-x-1.5 cursor-pointer"
                     >
-                      <RefreshCw className="w-3 h-3" />
+                      <RefreshCw className="w-2.5 h-2.5" />
                       <span>Compile Report</span>
                     </button>
                   )}
@@ -307,22 +307,22 @@ export default function NetworkInvestigation() {
                       <textarea
                         value={sarReport}
                         onChange={(e) => setSarReport(e.target.value)}
-                        className="flex-1 min-h-[200px] bg-secondary border-b border-transparent focus:border-primary p-3 text-xs font-mono text-foreground leading-relaxed focus:outline-none resize-y rounded-none"
+                        className="flex-1 min-h-[200px] bg-secondary border-b border-transparent focus:border-primary p-3 text-xs font-mono text-white leading-relaxed focus:outline-none resize-y rounded-none"
                         placeholder="Edit report draft..."
                       />
 
                       <div className="flex items-center space-x-3 justify-end">
                         <button
                           onClick={handleGenerateSAR}
-                          className="px-3 py-1 text-[10px] font-mono text-foreground/80 hover:text-white hover:bg-secondary border border-border rounded-none transition cursor-pointer"
+                          className="px-2.5 py-1 text-[9px] font-mono text-neutral-400 hover:text-white hover:bg-secondary border border-border rounded-none transition cursor-pointer"
                         >
                           Regenerate
                         </button>
                         <button
                           onClick={handleApproveSAR}
-                          className="px-4 py-1.5 bg-primary hover:bg-primary/90 text-[10px] font-bold text-black rounded-none transition flex items-center space-x-1.5 cursor-pointer"
+                          className="px-3.5 py-1 bg-primary hover:bg-primary/90 text-[9px] font-bold text-black rounded-none transition flex items-center space-x-1.5 cursor-pointer"
                         >
-                          <CheckCircle className="w-3.5 h-3.5 text-black" />
+                          <CheckCircle className="w-3 h-3 text-black" />
                           <span>Approve & Submit SAR</span>
                         </button>
                       </div>
@@ -335,10 +335,10 @@ export default function NetworkInvestigation() {
                       )}
                     </div>
                   ) : (
-                    <div className="flex-1 border border-dashed border-emerald-900/50 rounded-none flex flex-col items-center justify-center p-6 text-center text-neutral-500 bg-black font-mono">
-                      <FileText className="w-7 h-7 text-emerald-800 mb-2" />
+                    <div className="flex-1 border border-dashed border-border rounded-none flex flex-col items-center justify-center p-6 text-center text-neutral-500 bg-black font-mono">
+                      <FileText className="w-6 h-6 text-neutral-600 mb-2" />
                       <p className="text-xs uppercase font-bold text-white">No SAR drafted for this subject.</p>
-                      <p className="text-[10px] text-emerald-650 mt-1.5 max-w-[240px] leading-normal">
+                      <p className="text-[10px] text-neutral-550 mt-1.5 max-w-[240px] leading-normal">
                         Click the 'Compile Report' button to run the AI compliance parser on transaction flows and device telemetry.
                       </p>
                     </div>
@@ -348,9 +348,9 @@ export default function NetworkInvestigation() {
             </div>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-neutral-500 bg-black font-mono">
-              <ShieldAlert className="w-10 h-10 text-emerald-950 mb-3 animate-pulse" />
-              <h3 className="font-bold text-emerald-600/70 text-xs uppercase">No Active Target</h3>
-              <p className="text-[10px] text-emerald-800 mt-1.5 max-w-[260px] leading-normal">
+              <ShieldAlert className="w-8 h-8 text-neutral-700 mb-3 animate-pulse" />
+              <h3 className="font-bold text-neutral-400 text-xs uppercase">No Active Target</h3>
+              <p className="text-[10px] text-neutral-600 mt-1.5 max-w-[260px] leading-normal">
                 Use the network graph to visualize account relationships. Click any node to open its behavioral profile, transaction streams, and file compliance audits.
               </p>
             </div>
