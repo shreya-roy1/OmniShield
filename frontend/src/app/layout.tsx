@@ -17,6 +17,8 @@ export const metadata: Metadata = {
   description: "Advanced multi-channel banking fraud detection MVP simulating IP velocity, device fingerprinting, emulator checks, and automated compliance SAR compilation.",
 };
 
+import Sidebar from "@/components/Sidebar";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -27,7 +29,12 @@ export default function RootLayout({
       lang="en"
       className={`${sora.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-black text-neutral-300 font-sans">{children}</body>
+      <body className="min-h-full flex bg-black text-neutral-300 font-sans overflow-hidden">
+        <Sidebar />
+        <div className="flex-1 overflow-y-auto">
+          {children}
+        </div>
+      </body>
     </html>
   );
 }
