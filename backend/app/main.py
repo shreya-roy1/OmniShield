@@ -13,6 +13,7 @@ from app.schemas import (
 )
 from app.detector import evaluate_transaction
 from app.llm import generate_suspicious_activity_report
+from app.mule_classifier import load_model, predict_mule_score, get_random_test_sample
 
 app = FastAPI(title="OmniShield Fraud Detection API", version="1.0.0")
 
@@ -28,6 +29,7 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup():
     init_db()
+    load_model()
 
 @app.post("/api/user-profiles", response_model=UserProfile)
 def create_user_profile(profile: UserProfileCreate, db: Session = Depends(get_session)):
@@ -458,6 +460,22 @@ def get_account_risk_profile(account_id: str, db: Session = Depends(get_session)
         factors=factors,
         timeline=timeline
     )
+
+@app.post("/api/ml-classify")
+def classify_mule(payload: dict):
+    try:
+        result = predict_mule_score(payload)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/ml-sample")
+def ml_sample():
+    try:
+        sample = get_random_test_sample()
+        return sample
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/api/user-profiles/{account_id}/freeze")
 def freeze_user_profile(account_id: str, db: Session = Depends(get_session)):
