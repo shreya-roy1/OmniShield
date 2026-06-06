@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ShieldAlert, Database, Globe, Upload, AlertOctagon, Activity, Network } from 'lucide-react';
+import { ShieldAlert, Database, Globe, Upload, AlertOctagon, Activity, Network, Brain } from 'lucide-react';
 
 const Sidebar = () => {
   const pathname = usePathname();
@@ -14,6 +14,7 @@ const Sidebar = () => {
     { name: 'Tickets', href: '/tickets', icon: <Upload className="w-4 h-4" /> },
     { name: 'Blocklist', href: '/blocklist', icon: <AlertOctagon className="w-4 h-4" /> },
     { name: 'Graph Workspace', href: '/network-investigation', icon: <Network className="w-4 h-4" /> },
+    { name: 'ML Analysis', href: '/ml-analysis', icon: <Brain className="w-4 h-4" /> },
   ];
 
   return (

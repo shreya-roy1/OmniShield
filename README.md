@@ -13,14 +13,19 @@ graph TD
     A[Real-time Transactions JSON] -->|POST /api/transactions| B(FastAPI Server)
     C[Gov Cyber Tickets CSV] -->|POST /api/upload-government-tickets| B
     D[Cross-Channel Alerts JSON] -->|POST /api/alerts| B
+    I[Mule Accounts Dataset] -->|Google Colab Training| J[mule_model.pkl]
     
     B -->|SQLModel ORM| E[(SQLite Database)]
     B -->|Rule Engine| F[detector.py Heuristics]
     B -->|LangChain Prompt| G[llm.py SAR Compiler]
+    B -->|XGBoost Model| K[mule_classifier.py Inference]
+    J -->|Load on Startup| K
     
     H[Next.js Client] -->|GET /api/network-graph| B
     H -->|GET /api/statistics| B
     H -->|GET /api/generate-sar| B
+    H -->|POST /api/ml-classify| B
+    H -->|GET /api/ml-sample| B
 ```
 
 ---
@@ -51,12 +56,18 @@ graph TD
 * Queries database context (linked alerts, velocity details, money flows) and compiles a professional 3-paragraph **Suspicious Activity Report (SAR)** following FinCEN compliance guidelines.
 * Supported by **LangChain** utilizing OpenAI/Gemini APIs, with a high-fidelity template-based generator fallback for offline use.
 
+### 5. Explainable AI (XAI) Mule Classifier (Problem Statement 2)
+* **High-Accuracy Classification**: Trains an XGBoost Classifier on 3,924 anonymized features to predict suspicious money mule activities (under target label `F3924`).
+* **Categorical & Missing Value Handling**: Natively handles missing values (NaNs) and automatically handles category columns (e.g. Account Type, Occupation, Gender) during training and real-time prediction.
+* **Explainable AI (XAI) Dashboard**: Deconstructs the "black box" prediction, highlighting the top 10 most influential features contributing to a specific account's risk score using visual feature importance charts.
+* **Dynamic Testing Sample**: Instantly pulls random, real rows from the dataset via the `/api/ml-sample` endpoint to test prediction workflows on the fly.
+
 ---
 
 ## 🛠️ Tech Stack
 
-* **Frontend**: Next.js 15 (App Router), TypeScript, Tailwind CSS, `react-force-graph-2d`, Lucide React
-* **Backend**: FastAPI (Python), SQLModel (SQLAlchemy under-the-hood)
+* **Frontend**: Next.js 15 (App Router), TypeScript, Tailwind CSS, `react-force-graph-2d`, Lucide React, Recharts (for XAI visualization)
+* **Backend**: FastAPI (Python), SQLModel, **XGBoost, scikit-learn, joblib** (ML Pipeline)
 * **Database**: SQLite (local fallback) / PostgreSQL compatible
 * **AI/LLM**: LangChain, python-dotenv
 
@@ -111,6 +122,31 @@ graph TD
 
 ---
 
+## 🧠 ML Model Training & Setup
+
+Since the dataset is 116MB and contains thousands of features, we train the full XGBoost model on **Google Colab** and deploy the resulting binary locally.
+
+### 1. Training the Model on Google Colab
+1. Create a new notebook on Google Colab.
+2. Clone the repository inside your notebook:
+   ```python
+   !git clone https://github.com/Garv767/OmniShield.git
+   %cd OmniShield
+   ```
+3. Upload `DataSet.csv` into the `OmniShield` directory in Colab (or copy it from Google Drive).
+4. Run the training script:
+   ```python
+   !python backend/train_model.py --data DataSet.csv --output backend/app/mule_model.pkl
+   ```
+5. Download the generated `mule_model.pkl` file from the Colab file manager (`OmniShield/backend/app/mule_model.pkl`).
+6. Place the file in your local directory at `backend/app/mule_model.pkl`.
+
+### 2. Rerunning locally
+* The FastAPI backend automatically loads `backend/app/mule_model.pkl` on startup. 
+* Run your uvicorn command, and it will confirm: `Successfully loaded ML model from app/mule_model.pkl`.
+
+---
+
 ## 🧪 Simulation & Testing
 
 To seed the database with a pre-configured multi-channel scenario (velocity flags, emulator triggers, government tickets, and alerts):
@@ -121,4 +157,4 @@ To seed the database with a pre-configured multi-channel scenario (velocity flag
    .\venv\Scripts\python.exe test_endpoints.py
    ```
 2. Alternatively, click the **"Seed Demo Data"** button in the header of the frontend landing dashboard (`http://localhost:3000`).
-3. Form fields on the dashboard let you simulate transaction flows in real-time to watch heuristic flags trigger dynamically.
+3. Navigate to the **ML Analysis** tab in the sidebar to test the Explainable AI (XAI) predictions by loading random samples from the dataset.

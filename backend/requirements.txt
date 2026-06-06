@@ -8,3 +8,6 @@ langchain
 langchain-openai
 langchain-google-genai
 python-multipart
+scikit-learn
+xgboost
+joblib
